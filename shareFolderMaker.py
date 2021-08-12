@@ -13,11 +13,6 @@ args = parser.parse_args()
 if not os.path.isdir(args.basePath):
 	sys.exit("Provided path is not correct: " + str(args.basePath))
 
-topPathList = ['data','working','documentation']
-internalExternal = ['internal','external']
-workingPathList = args.operators.replace(' ', '').split(',')
-dataPathList = ['database','networkMapping','vulnerabilityScanning','webApp','phishing','wireless','penetrationTesting']
-networkPathList = ['eyewitness','aquatone','nmap']
 
 os.mkdir(os.path.join(args.basePath,"data"))
 os.mkdir(os.path.join(args.basePath,"data/penetrationTesting"))

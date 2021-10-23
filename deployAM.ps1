@@ -13,7 +13,7 @@ cls
 
 
 # Get user information and loginto vCenter
-# Insted of exit on bad login we should loop back and allow multiple tries
+# Instead of exit on bad login we should loop back and allow multiple tries
 $vCenterServer = Read-Host -Prompt "IP or FQDN of vCenter server"
 $vCenterUsername = Read-Host -Prompt "vCenter username"
 $vCenterPassword = Read-Host -Prompt "vCenter password" -AsSecureString
@@ -30,7 +30,7 @@ else {
 
 
 # Get VMHost object
-# Insted of exit on bad host we should loop back and allow multiple tries
+# Instead of exit on bad host we should loop back and allow multiple tries
 Write-Host `n`n VM Hosts:`n (Get-VMHost) `n
 $vmHostName = Read-Host -Prompt "Chose VM Host from the selection above: "
 $vmHost = Get-VMHost -Name $vmHostName -ErrorAction SilentlyContinue
@@ -42,7 +42,7 @@ if (-not $vmHost) {
 
 
 #Get Datastore object
-# Insted of exit on bad datastore we should loop back and allow multiple tries
+# Instead of exit on bad datastore we should loop back and allow multiple tries
 Write-Host `n`nData Stores:`n (Get-Datastore) `n
 $datastoreName = Read-Host -Prompt "Chose datastore from the selection above: "
 $datastore = Get-Datastore -Name $datastoreName -ErrorAction SilentlyContinue
@@ -51,6 +51,8 @@ if (-not $datastore) {
     pause
     exit
 }
+
+$numOfOperators = Read-Host -Prompt "`n`nHow many sets of operator VMs are needed"
 
 
 # Make the folders for organization
@@ -84,7 +86,7 @@ foreach ($server in $serverList) {
 # Deploying Kali
 $template = Get-Template -Name "Kali Gold"
 $macCounter = 31
-for ($i=1 ; $i -lt 10 ; $i++) {
+for ($i=1 ; $i -le $numOfOperators ; $i++) {
     Write-Host "Deploying Kali $i"
     New-VM -Name "Kali $i" -Template $template -Location $kaliLocation -Datastore $datastore -DiskStorageFormat Thin -VMHost $vmHost | Out-Null
     $currentVM = Get-VM -Name "Kali $i"
@@ -98,7 +100,7 @@ for ($i=1 ; $i -lt 10 ; $i++) {
 # Deploying Commando
 $template = Get-Template -Name "Commando Gold"
 $macCounter = 41
-for ($i=1 ; $i -lt 10 ; $i++) {
+for ($i=1 ; $i -le $numOfOperators ; $i++) {
     Write-Host "Deploying Commando $i"
     New-VM -Name "Commando $i" -Template $template -Location $commanodLocation -Datastore $datastore -DiskStorageFormat Thin -VMHost $vmHost | Out-Null
     $currentVM = Get-VM -Name "Commando $i"

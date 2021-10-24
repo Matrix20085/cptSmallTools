@@ -4,6 +4,15 @@ $kaliLocation = "Kalis"
 $commanodLocation = "Commandos"
 
 
+# Check is ISE is being used
+if ($host.name -match 'Windows PowerShell ISE Host')
+{
+  Write-Host "Multiple issues have been noted running this script in ISE.`nPlease use a regular script console to proceed." -ForegroundColor Red -BackgroundColor Black
+  pause
+  exit
+}
+
+
 # Download and import PowerCli
 Write-Host "Downloading VMWare Tools, this may take a while..." -ForegroundColor Cyan -BackgroundColor Black
 Install-Module -Name VMware.PowerCLI -Scope CurrentUser -Force:$true
@@ -73,35 +82,35 @@ Get-Folder -Name vm | New-Folder -Name $commanodLocation -ErrorAction SilentlyCo
 Get-VirtualSwitch -Name "vSwitch0" | Set-VirtualSwitch -Nic "vmnic0"  # Might need to use Add/Remove-VirtualSwitchPhysicalNetworkAdapter
 
 # Make virtual switch cpt.local with uplink vmnic3 and vmnic4
-New-VirtualSwitch -Name "cpt.local" -Nic (Get-VMHostNetworkAdapter -Name "vmnic3")
-Add-VirtualSwitchPhysicalNetworkAdapter -VirtualSwitch (Get-VirtualSwitch -Name "cpt.local") -VMHostPhysicalNic (Get-VMHostNetworkAdapter -Name "vmnic4")
+New-VirtualSwitch -Name "cpt.local" -Nic (Get-VMHostNetworkAdapter -Name "vmnic3") -VMHost $vmHost | Out-Null
+Add-VirtualSwitchPhysicalNetworkAdapter -VirtualSwitch (Get-VirtualSwitch -Name "cpt.local") -VMHostPhysicalNic (Get-VMHostNetworkAdapter -Name "vmnic4") -Confirm:$false
 
 # Make virtual swtich Cell Router with uplink vmnic1
-New-VirtualSwitch -Name "Cell Router" -Nic (Get-VMHostNetworkAdapter -Name "vmnic1")
+New-VirtualSwitch -Name "Cell Router" -Nic (Get-VMHostNetworkAdapter -Name "vmnic1") -VMHost $vmHost | Out-Null
 
 # Make virtual switch Emergency with uplink vmnic5
-New-VirtualSwitch -Name "Emergency" -Nic (Get-VMHostNetworkAdapter -Name "vmnic5")
+New-VirtualSwitch -Name "Emergency" -Nic (Get-VMHostNetworkAdapter -Name "vmnic5") -VMHost $vmHost | Out-Null
 
 # Make portgroup cpt.local assigned to cpt.local
-New-VirtualPortGroup -Name "cpt.local" -VirtualSwitch (Get-VirtualSwitch -Name "cpt.local")
+New-VirtualPortGroup -Name "cpt.local" -VirtualSwitch (Get-VirtualSwitch -Name "cpt.local") | Out-Null
 
 # Make portgroup cpt.local Management assigned to cpt.local
-New-VirtualPortGroup -Name "cpt.local Management" -VirtualSwitch (Get-VirtualSwitch -Name "cpt.local")
+New-VirtualPortGroup -Name "cpt.local Management" -VirtualSwitch (Get-VirtualSwitch -Name "cpt.local") | Out-Null
 
 # Check portgroup VM Network assigned to vSwitch0
-New-VirtualPortGroup -Name "VM Network" -VirtualSwitch (Get-VirtualSwitch -Name "vSwitch0")
+New-VirtualPortGroup -Name "VM Network" -VirtualSwitch (Get-VirtualSwitch -Name "vSwitch0") | Out-Null
 
 # Make portgroup Cell Router assigned to Cell Router
-New-VirtualPortGroup -Name "Cell Router" -VirtualSwitch (Get-VirtualSwitch -Name "Cell Router")
+New-VirtualPortGroup -Name "Cell Router" -VirtualSwitch (Get-VirtualSwitch -Name "Cell Router") | Out-Null
 
 # Make portgroup Emergency Management assigned to Emergency
-New-VirtualPortGroup -Name "Emergency Management" -VirtualSwitch (Get-VirtualSwitch -Name "Emergency")
+New-VirtualPortGroup -Name "Emergency Management" -VirtualSwitch (Get-VirtualSwitch -Name "Emergency") | Out-Null
 
 # Make VMKernalNic with portgroup cpt.local Management with static 172.20.20.2 (255.255.255.0) add service management
-New-VMHostNetworkAdapter -PortGroup (Get-VirtualPortGroup -Name "cpt.local Management") -IP "172.20.20.2" -SubnetMask "255.255.255.0"
+New-VMHostNetworkAdapter -PortGroup (Get-VirtualPortGroup -Name "cpt.local Management") -VirtualSwitch (Get-VirtualSwitch -Name "cpt.local") -ManagementTrafficEnabled $true -IP "172.20.20.2" -SubnetMask "255.255.255.0" | Out-Null
 
 # Make VMKernalNic with portgroup Emergency Management with static 172.17.90.1 (255.255.255.0) add service management
-New-VMHostNetworkAdapter -PortGroup (Get-VirtualPortGroup -Name "Emergency Management") -IP "172.17.90.1" -SubnetMask "255.255.255.0"
+New-VMHostNetworkAdapter -PortGroup (Get-VirtualPortGroup -Name "Emergency Management") -VirtualSwitch (Get-VirtualSwitch -Name "Emergency") -ManagementTrafficEnabled $true -IP "172.17.90.1" -SubnetMask "255.255.255.0" | Out-Null
 
 
 # Deploying pfSense

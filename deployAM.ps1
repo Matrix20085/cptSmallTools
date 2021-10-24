@@ -3,6 +3,18 @@ $serverLocation = "Servers"
 $kaliLocation = "Kalis"
 $commanodLocation = "Commandos"
 
+# Custom sleep
+function Start-Sleep-Custom($Seconds,$Message) {
+    $doneDT = (Get-Date).AddSeconds($seconds)
+    while($doneDT -gt (Get-Date)) {
+        $secondsLeft = $doneDT.Subtract((Get-Date)).TotalSeconds
+        $percent = ($Seconds - $secondsLeft) / $Seconds * 100
+        Write-Progress -Activity "Sleeping" -Status $Message -SecondsRemaining $secondsLeft -PercentComplete $percent
+        [System.Threading.Thread]::Sleep(500)
+    }
+    Write-Progress -Activity "Sleeping" -Status $Message -SecondsRemaining 0 -Completed
+}
+
 
 # Check is ISE is being used
 if ($host.name -match 'Windows PowerShell ISE Host')
@@ -36,6 +48,10 @@ else {
     pause
     exit
 }
+
+
+# Password for changing host names on the Kali and Commando boxes
+$guestPassword = Read-Host -Prompt "Password for CPT account on Kali and Commando" -AsSecureString
 
 
 # Get VMHost object
@@ -152,16 +168,24 @@ $currentVM = Get-VM -Name "CPT-Kali"
 $currentNIC = Get-NetworkAdapter -VM $currentVM
 Set-NetworkAdapter -NetworkAdapter $currentNIC -MacAddress "00:50:56:17:90:21" -Confirm:$false | Out-Null
 New-NetworkAdapter -VM $currentVM -StartConnected -NetworkName "VM Network" | Out-Null
+Start-VM -VM $currentVM | Out-Null
+Start-Sleep-Custom -Seconds 60 -Message "Waiting for $currentVM to fully boot..."
+Invoke-VMScript -VM $currentVM -guestUser "cpt" -guestPassword $guestPassword -ScriptText "sudo hostnamectl set-hostname 'CPT-Kali' && sudo sed -i 's/kali/CPT-Kali/g' /etc/hosts && sudo gpasswd --delete cpt kali-trusted" | Out-Null
+Shutdown-VMGuest -VM $currentVM -Confirm:$false | Out-Null
 
 
 # Deploying Kali
-$macCounter = 30
+$macCounter = 30g
 for ($i=0 ; $i -le $numOfOperators ; $i++) {
     Write-Host "Deploying Kali-$i"
     New-VM -Name "Kali-$i" -Template $template -Location $kaliLocation -Datastore $datastore -DiskStorageFormat Thin -VMHost $vmHost | Out-Null
     $currentVM = Get-VM -Name "Kali-$i"
     $currentNIC = Get-NetworkAdapter -VM $currentVM
     Set-NetworkAdapter -NetworkAdapter $currentNIC -MacAddress "00:50:56:17:90:$macCounter" -Confirm:$false | Out-Null
+    Start-VM -VM $currentVM | Out-Null
+    Start-Sleep-Custom -Seconds 60 -Message "Waiting for $currentVM to fully boot..."
+    Invoke-VMScript -VM $currentVM -guestUser "cpt" -guestPassword $guestPassword -ScriptText "sudo hostnamectl set-hostname 'Kali-$i' && sudo sed -i 's/kali/Kali-$i/g' /etc/hosts && sudo gpasswd --delete cpt kali-trusted" | Out-Null
+    Shutdown-VMGuest -VM $currentVM -Confirm:$false | Out-Null
     $macCounter++
 }
 
@@ -174,6 +198,10 @@ $currentVM = Get-VM -Name "CPT-Commando"
 $currentNIC = Get-NetworkAdapter -VM $currentVM
 Set-NetworkAdapter -NetworkAdapter $currentNIC -MacAddress "00:50:56:17:90:22" -Confirm:$false | Out-Null
 New-NetworkAdapter -VM $currentVM -StartConnected -NetworkName "VM Network" | Out-Null
+Start-VM -VM $currentVM | Out-Null
+Start-Sleep-Custom -Seconds 60 -Message "Waiting for $currentVM to fully boot..."
+Invoke-VMScript -VM $currentVM -GuestUser "cpt" -GuestPassword $guestPassword -ScriptText "Rename-Computer -NewName 'CPT-Commando'"
+Shutdown-VMGuest -VM $currentVM -Confirm:$false | Out-Null
 
 
 # Deploying Commando
@@ -184,5 +212,9 @@ for ($i=0 ; $i -le $numOfOperators ; $i++) {
     $currentVM = Get-VM -Name "Commando-$i"
     $currentNIC = Get-NetworkAdapter -VM $currentVM
     Set-NetworkAdapter -NetworkAdapter $currentNIC -MacAddress "00:50:56:17:90:$macCounter" -Confirm:$false | Out-Null
+    Start-VM -VM $currentVM | Out-Null
+    Start-Sleep-Custom -Seconds 60 -Message "Waiting for $currentVM to fully boot..."
+    Invoke-VMScript -VM $currentVM -GuestUser "cpt" -GuestPassword $guestPassword -ScriptText "Rename-Computer -NewName 'Commando-$i'" | Out-Null
+    Shutdown-VMGuest -VM $currentVM -Confirm:$false | Out-Null
     $macCounter++
 }

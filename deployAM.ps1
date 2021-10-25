@@ -176,7 +176,7 @@ Shutdown-VMGuest -VM $currentVM -Confirm:$false | Out-Null
 
 # Deploying Kali
 $macCounter = 30g
-for ($i=0 ; $i -le $numOfOperators ; $i++) {
+for ($i=0 ; $i -lt $numOfOperators ; $i++) {
     Write-Host "Deploying Kali-$i"
     New-VM -Name "Kali-$i" -Template $template -Location $kaliLocation -Datastore $datastore -DiskStorageFormat Thin -VMHost $vmHost | Out-Null
     $currentVM = Get-VM -Name "Kali-$i"
@@ -200,13 +200,13 @@ Set-NetworkAdapter -NetworkAdapter $currentNIC -MacAddress "00:50:56:17:90:22" -
 New-NetworkAdapter -VM $currentVM -StartConnected -NetworkName "VM Network" | Out-Null
 Start-VM -VM $currentVM | Out-Null
 Start-Sleep-Custom -Seconds 60 -Message "Waiting for $currentVM to fully boot..."
-Invoke-VMScript -VM $currentVM -GuestUser "cpt" -GuestPassword $guestPassword -ScriptText "Rename-Computer -NewName 'CPT-Commando'"
+Invoke-VMScript -VM $currentVM -GuestUser "cpt" -GuestPassword $guestPassword -ScriptText "Rename-Computer -NewName 'CPT-Commando'" | Out-Null
 Shutdown-VMGuest -VM $currentVM -Confirm:$false | Out-Null
 
 
 # Deploying Commando
 $macCounter = 40
-for ($i=0 ; $i -le $numOfOperators ; $i++) {
+for ($i=0 ; $i -lt $numOfOperators ; $i++) {
     Write-Host "Deploying Commando-$i"
     New-VM -Name "Commando-$i" -Template $template -Location $commanodLocation -Datastore $datastore -DiskStorageFormat Thin -VMHost $vmHost | Out-Null
     $currentVM = Get-VM -Name "Commando-$i"

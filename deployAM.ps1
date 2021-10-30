@@ -48,7 +48,7 @@ while ($true) {
     $vCenterPassword = [Runtime.InteropServices.Marshal]::PtrToStringAuto([Runtime.InteropServices.Marshal]::SecureStringToBSTR($vCenterPassword))
     Set-PowerCLIConfiguration -InvalidCertificateAction Ignore -Confirm:$false | Out-Null
     if (Connect-VIServer -Server $vCenterServer -Protocol https -User $vCenterUsername -Password $vCenterPassword -ErrorAction SilentlyContinue) {
-        Write-Output 'Connected to $vCenterServer!'
+        Write-Output "Connected to $vCenterServer!"
         Break
     } 
     else { $Error[0] }

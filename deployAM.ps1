@@ -2,6 +2,7 @@
 TODO:
 Add simple check to make sure the expected number of VMs are present
 Add check to make sure vSwith0 is set to vmnic5
+Test boot/invoke-vmscript with the wait-tools option. Need to specify the script type I think
 #>
 
 

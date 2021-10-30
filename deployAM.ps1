@@ -1,7 +1,14 @@
-# Hard variables
-$serverLocation = "Servers"
-$kaliLocation = "Kalis"
-$commanodLocation = "Commandos"
+<#
+TODO:
+Add simple check to make sure the expected number of VMs are present
+Add check to make sure vSwith0 is set to vmnic5
+#>
+
+
+Write-Host "Requirements:`n`n" 
+Write-Host "vSwitch0 needs to be set to vmnic5 in the Virtual Switch tab"
+Write-Host "`n`nWhen the above requirements are met you can continue"
+pause
 
 # Custom sleep
 function Start-Sleep-Custom($Seconds,$Message) {
@@ -34,19 +41,17 @@ cls
 
 
 # Get user information and loginto vCenter
-# Instead of exit on bad login we should loop back and allow multiple tries
-$vCenterServer = Read-Host -Prompt "IP or FQDN of vCenter server"
-$vCenterUsername = Read-Host -Prompt "vCenter username"
-$vCenterPassword = Read-Host -Prompt "vCenter password" -AsSecureString
-$vCenterPassword = [Runtime.InteropServices.Marshal]::PtrToStringAuto([Runtime.InteropServices.Marshal]::SecureStringToBSTR($vCenterPassword))
-Set-PowerCLIConfiguration -InvalidCertificateAction Ignore -Confirm:$false | Out-Null
-if (Connect-VIServer -Server $vCenterServer -Protocol https -User $vCenterUsername -Password $vCenterPassword -ErrorAction SilentlyContinue) {
-    Write-Output 'Connected'
-} 
-else {
-    $Error[0]
-    pause
-    exit
+while ($true) {
+    $vCenterServer = Read-Host -Prompt "IP or FQDN of vCenter server"
+    $vCenterUsername = Read-Host -Prompt "vCenter username"
+    $vCenterPassword = Read-Host -Prompt "vCenter password" -AsSecureString
+    $vCenterPassword = [Runtime.InteropServices.Marshal]::PtrToStringAuto([Runtime.InteropServices.Marshal]::SecureStringToBSTR($vCenterPassword))
+    Set-PowerCLIConfiguration -InvalidCertificateAction Ignore -Confirm:$false | Out-Null
+    if (Connect-VIServer -Server $vCenterServer -Protocol https -User $vCenterUsername -Password $vCenterPassword -ErrorAction SilentlyContinue) {
+        Write-Output 'Connected to $vCenterServer!'
+        Break
+    } 
+    else { $Error[0] }
 }
 
 
@@ -55,76 +60,51 @@ $guestPassword = Read-Host -Prompt "Password for CPT account on Kali and Command
 
 
 # Get VMHost object
-# Instead of exit on bad host we should loop back and allow multiple tries
 Write-Host `n`n VM Hosts:`n
 foreach ($hostName in Get-VMHost) { Write-Host $hostName }
-$vmHostName = Read-Host -Prompt "Chose VM Host from the selection above: "
-$vmHost = Get-VMHost -Name $vmHostName -ErrorAction SilentlyContinue
-if (-not $vmHost) {
-    Write-Host "Host name incorrect!!!" -ForegroundColor Red -BackgroundColor Black
-    pause
-    exit
+while ($true){
+    $vmHostName = Read-Host -Prompt "Chose VM Host from the selection above"
+    $vmHost = Get-VMHost -Name $vmHostName -ErrorAction SilentlyContinue
+    if (-not $vmHost) { Write-Host "Host name wrong. Try again.`n" -ForegroundColor Red -BackgroundColor Black }
+    else { Break }
 }
 
 
 # Get Datastore object
-# Instead of exit on bad datastore we should loop back and allow multiple tries
 Write-Host `n`nData Stores:`n
 foreach ($datastName in ($vmHost | Get-Datastore)) { Write-Host $datastName }
-$datastoreName = Read-Host -Prompt "Chose datastore from the selection above: "
-$datastore = Get-Datastore -Name $datastoreName -ErrorAction SilentlyContinue
-if (-not $datastore) {
-    Write-Host "Datastore name incorrect!!!" -ForegroundColor Red -BackgroundColor Black
-    pause
-    exit
+while ($true) {
+    $datastoreName = Read-Host -Prompt "Chose datastore from the selection above"
+    $datastore = Get-Datastore -Name $datastoreName -ErrorAction SilentlyContinue
+    if (-not $datastore) { Write-Host "Datastore name incorrect!!!" -ForegroundColor Red -BackgroundColor Black }
+    else { Break }
+}
+
+# Get number of operators
+while ($true) {
+    [int]$numOfOperators = Read-Host -Prompt "`n`nHow many sets of operator VMs are needed (10 max)"
+    if ($numOfOperators -gt 10) { Write-Host "NO... $numOfOperators is to many operators." -ForegroundColor Red -BackgroundColor Black }
+    else { Break }
 }
 
 
-# Instead of exit on to many we should loop back and allow multiple tries
-$numOfOperators = Read-Host -Prompt "`n`nHow many sets of operator VMs are needed"
-if ($numOfOperators -gt 10) {
-    Write-Host "NO... to many operators." -ForegroundColor Red -BackgroundColor Black
-    pause
-    exit
-}
+Write-Host "Setting up networking..."
+New-VirtualSwitch -Name "cpt.local" -Nic (Get-VMHostNetworkAdapter -Name "vmnic3" -VMHost $vmHost) -VMHost $vmHost | Out-Null
+Add-VirtualSwitchPhysicalNetworkAdapter -VirtualSwitch (Get-VirtualSwitch -Name "cpt.local" -VMHost $vmHost) -VMHostPhysicalNic (Get-VMHostNetworkAdapter -Name "vmnic4"  -VMHost $vmHost) -Confirm:$false
+New-VirtualPortGroup -Name "cpt.local" -VirtualSwitch (Get-VirtualSwitch -Name "cpt.local"  -VMHost $vmHost) | Out-Null
+New-VirtualPortGroup -Name "cpt.local Management" -VirtualSwitch (Get-VirtualSwitch -Name "cpt.local"  -VMHost $vmHost) | Out-Null
+New-VMHostNetworkAdapter -PortGroup (Get-VirtualPortGroup -Name "cpt.local Management"  -VMHost $vmHost) -VirtualSwitch (Get-VirtualSwitch -Name "cpt.local"  -VMHost $vmHost) -ManagementTrafficEnabled $true -IP "172.20.20.2" -SubnetMask "255.255.255.0" | Out-Null
 
 
-# Make the folders for organization
-# Need to test where the name "vm" comes from. It might be a default just not sure
-Get-Folder -Name vm | New-Folder -Name $serverLocation -ErrorAction SilentlyContinue
-Get-Folder -Name vm | New-Folder -Name $kaliLocation -ErrorAction SilentlyContinue
-Get-Folder -Name vm | New-Folder -Name $commanodLocation -ErrorAction SilentlyContinue
+New-VirtualSwitch -Name "Cell Router" -Nic (Get-VMHostNetworkAdapter -Name "vmnic1" -VMHost $vmHost) -VMHost $vmHost | Out-Null
+New-VirtualPortGroup -Name "Cell Router" -VirtualSwitch (Get-VirtualSwitch -Name "Cell Router"  -VMHost $vmHost) | Out-Null
 
 
-# Set switch vSwitch0 uplink to vmnic5
-Get-VirtualSwitch -Name "vSwitch0" | Set-VirtualSwitch -Nic "vmnic5"  # Might need to use Add/Remove-VirtualSwitchPhysicalNetworkAdapter
-
-# Make virtual switch cpt.local with uplink vmnic3 and vmnic4
-New-VirtualSwitch -Name "cpt.local" -Nic (Get-VMHostNetworkAdapter -Name "vmnic3") -VMHost $vmHost | Out-Null
-Add-VirtualSwitchPhysicalNetworkAdapter -VirtualSwitch (Get-VirtualSwitch -Name "cpt.local") -VMHostPhysicalNic (Get-VMHostNetworkAdapter -Name "vmnic4") -Confirm:$false
-
-# Make virtual swtich Cell Router with uplink vmnic1
-New-VirtualSwitch -Name "Cell Router" -Nic (Get-VMHostNetworkAdapter -Name "vmnic1") -VMHost $vmHost | Out-Null
-
-# Make portgroup cpt.local assigned to cpt.local
-New-VirtualPortGroup -Name "cpt.local" -VirtualSwitch (Get-VirtualSwitch -Name "cpt.local") | Out-Null
-
-# Make portgroup cpt.local Management assigned to cpt.local
-New-VirtualPortGroup -Name "cpt.local Management" -VirtualSwitch (Get-VirtualSwitch -Name "cpt.local") | Out-Null
-
-# Check portgroup VM Network assigned to vSwitch0
-New-VirtualPortGroup -Name "Target" -VirtualSwitch (Get-VirtualSwitch -Name "Target") | Out-Null
-
-# Make portgroup Cell Router assigned to Cell Router
-New-VirtualPortGroup -Name "Cell Router" -VirtualSwitch (Get-VirtualSwitch -Name "Cell Router") | Out-Null
-
-# Make VMKernalNic with portgroup cpt.local Management with static 172.20.20.2 (255.255.255.0) add service management
-New-VMHostNetworkAdapter -PortGroup (Get-VirtualPortGroup -Name "cpt.local Management") -VirtualSwitch (Get-VirtualSwitch -Name "cpt.local") -ManagementTrafficEnabled $true -IP "172.20.20.2" -SubnetMask "255.255.255.0" | Out-Null
-
-# Make VMKernalNic with portgroup Emergency Management with static 172.17.90.1 (255.255.255.0) add service management
-New-VMHostNetworkAdapter -PortGroup (Get-VirtualPortGroup -Name "Emergency Management") -VirtualSwitch (Get-VirtualSwitch -Name "Emergency") -ManagementTrafficEnabled $true -IP "172.17.90.1" -SubnetMask "255.255.255.0" | Out-Null
+New-VirtualSwitch -Name "Target" -Nic (Get-VMHostNetworkAdapter -Name "vmnic0" -VMHost $vmHost) -VMHost $vmHost | Out-Null
+New-VirtualPortGroup -Name "Target" -VirtualSwitch (Get-VirtualSwitch -Name "Target"  -VMHost $vmHost) | Out-Null
 
 
+# Allowing autostart of VMs
 Get-VMHostStartPolicy -VMHost $vmHost | Set-VMHostStartPolicy -Enabled $true -StartDelay 120 -WaitForHeartBeat $true | Out-Null
 
 
@@ -214,4 +194,5 @@ for ($i=0 ; $i -lt $numOfOperators ; $i++) {
     Shutdown-VMGuest -VM $currentVM -Confirm:$false | Out-Null
     $macCounter++
 }
+Write-Host "`n`nDeployment finished. Look above for an errors with the process before hitting enter."
 pause

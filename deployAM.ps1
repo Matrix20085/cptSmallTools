@@ -144,7 +144,7 @@ New-VM -Name "CPT-Kali" -Template $template -Datastore $datastore -DiskStorageFo
 $currentVM = Get-VM -Name "CPT-Kali"  -Datastore $datastore
 $currentNIC = Get-NetworkAdapter -VM $currentVM
 Set-NetworkAdapter -NetworkAdapter $currentNIC -MacAddress "00:50:56:17:90:21" -Confirm:$false | Out-Null
-New-NetworkAdapter -VM $currentVM -StartConnected -NetworkName "VM Network" | Out-Null
+New-NetworkAdapter -VM $currentVM -StartConnected -NetworkName "Target" | Out-Null
 Start-VM -VM $currentVM | Out-Null
 Start-Sleep-Custom -Seconds 60 -Message "Waiting for $currentVM to fully boot..."
 Invoke-VMScript -VM $currentVM -guestUser "cpt" -guestPassword $guestPassword -ScriptText "sudo hostnamectl set-hostname 'CPT-Kali' && sudo sed -i 's/kali/CPT-Kali/g' /etc/hosts && sudo gpasswd --delete cpt kali-trusted" | Out-Null
@@ -174,7 +174,7 @@ New-VM -Name "CPT-Commando" -Template $template -Datastore $datastore -DiskStora
 $currentVM = Get-VM -Name "CPT-Commando"  -Datastore $datastore
 $currentNIC = Get-NetworkAdapter -VM $currentVM
 Set-NetworkAdapter -NetworkAdapter $currentNIC -MacAddress "00:50:56:17:90:22" -Confirm:$false | Out-Null
-New-NetworkAdapter -VM $currentVM -StartConnected -NetworkName "VM Network" | Out-Null
+New-NetworkAdapter -VM $currentVM -StartConnected -NetworkName "Target" | Out-Null
 Start-VM -VM $currentVM | Out-Null
 Start-Sleep-Custom -Seconds 60 -Message "Waiting for $currentVM to fully boot..."
 Invoke-VMScript -VM $currentVM -GuestUser "cpt" -GuestPassword $guestPassword -ScriptText "Rename-Computer -NewName 'CPT-Commando'" | Out-Null

@@ -4,7 +4,6 @@ Add simple check to make sure the expected number of VMs are present
 Add check to make sure vSwith0 is set to vmnic5
 Test boot/invoke-vmscript with the wait-tools option. Need to specify the script type I think
 Add CPT account to ESXi with full perms
-Take snapshot after deploy
 #>
 
 
@@ -138,6 +137,7 @@ $server = "pfSense"
 New-VM -Name $server -Template $template -Datastore $datastore -DiskStorageFormat Thin -VMHost $vmHost | Out-Null
 $currentVM = Get-VM -Name $server -Datastore $datastore
 Get-VMStartPolicy -VM $currentVM | Set-VMStartPolicy -StartAction PowerOn -StartOrder 1 -StartDelay 120| Out-Null
+New-Snapshot -VM $currentVM -Name "Gold" -Description "Lab provided Gold image" | Out-Null
 
 
 # List of all servers.
@@ -155,6 +155,7 @@ foreach ($server in $serverList) {
     $currentNIC = Get-NetworkAdapter -VM $currentVM
     Set-NetworkAdapter -NetworkAdapter $currentNIC -MacAddress "00:50:56:17:90:$macCounter" -Confirm:$false | Out-Null
     Get-VMStartPolicy -VM $currentVM | Set-VMStartPolicy -StartAction PowerOn | Out-Null
+    New-Snapshot -VM $currentVM -Name "Gold" -Description "Lab provided Gold image" | Out-Null
     $macCounter++
 }
 
@@ -171,6 +172,7 @@ Start-VM -VM $currentVM | Out-Null
 Start-Sleep-Custom -Seconds 60 -Message "Waiting for $currentVM to fully boot..."
 Invoke-VMScript -VM $currentVM -guestUser "cpt" -guestPassword $guestPassword -ScriptText "sudo hostnamectl set-hostname 'CPT-Kali' && sudo sed -i 's/kali/CPT-Kali/g' /etc/hosts && sudo gpasswd --delete cpt kali-trusted" | Out-Null
 Shutdown-VMGuest -VM $currentVM -Confirm:$false | Out-Null
+New-Snapshot -VM $currentVM -Name "Gold" -Description "Lab provided Gold image" | Out-Null
 
 
 # Deploying Kali
@@ -185,6 +187,7 @@ for ($i=0 ; $i -lt $numOfOperators ; $i++) {
     Start-Sleep-Custom -Seconds 60 -Message "Waiting for $currentVM to fully boot..."
     Invoke-VMScript -VM $currentVM -guestUser "cpt" -guestPassword $guestPassword -ScriptText "sudo hostnamectl set-hostname 'Kali-$i' && sudo sed -i 's/kali/Kali-$i/g' /etc/hosts && sudo gpasswd --delete cpt kali-trusted" | Out-Null
     Shutdown-VMGuest -VM $currentVM -Confirm:$false | Out-Null
+    New-Snapshot -VM $currentVM -Name "Gold" -Description "Lab provided Gold image" | Out-Null
     $macCounter++
 }
 
@@ -201,6 +204,7 @@ Start-VM -VM $currentVM | Out-Null
 Start-Sleep-Custom -Seconds 60 -Message "Waiting for $currentVM to fully boot..."
 Invoke-VMScript -VM $currentVM -GuestUser "cpt" -GuestPassword $guestPassword -ScriptText "Rename-Computer -NewName 'CPT-Commando'" | Out-Null
 Shutdown-VMGuest -VM $currentVM -Confirm:$false | Out-Null
+New-Snapshot -VM $currentVM -Name "Gold" -Description "Lab provided Gold image" | Out-Null
 
 
 # Deploying Commando
@@ -215,6 +219,7 @@ for ($i=0 ; $i -lt $numOfOperators ; $i++) {
     Start-Sleep-Custom -Seconds 60 -Message "Waiting for $currentVM to fully boot..."
     Invoke-VMScript -VM $currentVM -GuestUser "cpt" -GuestPassword $guestPassword -ScriptText "Rename-Computer -NewName 'Commando-$i'" | Out-Null
     Shutdown-VMGuest -VM $currentVM -Confirm:$false | Out-Null
+    New-Snapshot -VM $currentVM -Name "Gold" -Description "Lab provided Gold image" | Out-Null
     $macCounter++
 }
 Write-Host "`n`nDeployment finished. Look above for an errors with the process before hitting enter."

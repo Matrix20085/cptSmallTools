@@ -3,6 +3,8 @@ TODO:
 Add simple check to make sure the expected number of VMs are present
 Add check to make sure vSwith0 is set to vmnic5
 Test boot/invoke-vmscript with the wait-tools option. Need to specify the script type I think
+Add CPT account to ESXi with full perms
+Take snapshot after deploy
 #>
 
 
@@ -33,9 +35,12 @@ if ($host.name -match 'Windows PowerShell ISE Host')
 }
 
 
-# Download and import PowerCli
-Write-Host "Downloading VMWare Tools, this may take a while..." -ForegroundColor Cyan -BackgroundColor Black
-Install-Module -Name VMware.PowerCLI -Scope CurrentUser -Force:$true -SkipPublisherCheck -AllowClobber
+# Install and import PowerCli
+if ((Get-Module -ListAvailable VMware* | Measure-Object | Select-Object -ExpandProperty Count) -ne 73) {
+    Write-Host "Installing VMWare Tools, this may take a while..." -ForegroundColor Cyan -BackgroundColor Black
+    Save-Module -Name VMware.PowerCLI -Path $home\Documents\WindowsPowerShell\Modules
+    Set-PowerCLIConfiguration -Scope AllUsers -ParticipateInCEIP $false -Confirm:$false
+}
 Write-Host "Importing VMWare Tools, this may take a while..." -ForegroundColor Cyan -BackgroundColor Black
 Get-Module -ListAvailable VMware* | Import-Module | Out-Null
 cls
@@ -81,6 +86,18 @@ while ($true) {
     else { Break }
 }
 
+# Get operator network information
+$pattern = "^([1-9]|[1-9][0-9]|1[0-9][0-9]|2[0-4][0-9]|25[0-5])(\.([0-9]|[1-9][0-9]|1[0-9][0-9]|2[0-4][0-9]|25[0-5])){3}$"
+while ($true) {
+    $opNetworkIP = Read-Host -Prompt "`nEnter the IP for the Mission LAN"
+    if ($opNetworkIP -match $pattern) { Break }
+}
+while ($true) {
+    $opNetworkSub = Read-Host -Prompt "`nEnter the subnet mask for the Mission LAN"
+    if ($opNetworkSub -match $pattern) { Break }
+}
+
+
 # Get number of operators
 while ($true) {
     [int]$numOfOperators = Read-Host -Prompt "`n`nHow many sets of operator VMs are needed (10 max)"
@@ -90,8 +107,8 @@ while ($true) {
 
 
 Write-Host "Setting up networking..."
-New-VirtualSwitch -Name "cpt.local" -Nic (Get-VMHostNetworkAdapter -Name "vmnic3" -VMHost $vmHost) -VMHost $vmHost | Out-Null
-Add-VirtualSwitchPhysicalNetworkAdapter -VirtualSwitch (Get-VirtualSwitch -Name "cpt.local" -VMHost $vmHost) -VMHostPhysicalNic (Get-VMHostNetworkAdapter -Name "vmnic4"  -VMHost $vmHost) -Confirm:$false
+New-VirtualSwitch -Name "cpt.local" -Nic (Get-VMHostNetworkAdapter -Name "vmnic2" -VMHost $vmHost) -VMHost $vmHost | Out-Null
+Add-VirtualSwitchPhysicalNetworkAdapter -VirtualSwitch (Get-VirtualSwitch -Name "cpt.local" -VMHost $vmHost) -VMHostPhysicalNic (Get-VMHostNetworkAdapter -Name "vmnic3"  -VMHost $vmHost) -Confirm:$false
 New-VirtualPortGroup -Name "cpt.local" -VirtualSwitch (Get-VirtualSwitch -Name "cpt.local"  -VMHost $vmHost) | Out-Null
 New-VirtualPortGroup -Name "cpt.local Management" -VirtualSwitch (Get-VirtualSwitch -Name "cpt.local"  -VMHost $vmHost) | Out-Null
 New-VMHostNetworkAdapter -PortGroup (Get-VirtualPortGroup -Name "cpt.local Management"  -VMHost $vmHost) -VirtualSwitch (Get-VirtualSwitch -Name "cpt.local"  -VMHost $vmHost) -ManagementTrafficEnabled $true -IP "172.20.20.2" -SubnetMask "255.255.255.0" | Out-Null
@@ -103,6 +120,10 @@ New-VirtualPortGroup -Name "Cell Router" -VirtualSwitch (Get-VirtualSwitch -Name
 
 New-VirtualSwitch -Name "Target" -Nic (Get-VMHostNetworkAdapter -Name "vmnic0" -VMHost $vmHost) -VMHost $vmHost | Out-Null
 New-VirtualPortGroup -Name "Target" -VirtualSwitch (Get-VirtualSwitch -Name "Target"  -VMHost $vmHost) | Out-Null
+
+New-VirtualSwitch -Name "Mission LAN" -Nic (Get-VMHostNetworkAdapter -Name "vmnic4" -VMHost $vmHost) -VMHost $vmHost | Out-Null
+New-VirtualPortGroup -Name "Mission LAN" -VirtualSwitch (Get-VirtualSwitch -Name "Mission LAN"  -VMHost $vmHost) | Out-Null
+New-VMHostNetworkAdapter -PortGroup (Get-VirtualPortGroup -Name "Mission LAN"  -VMHost $vmHost) -VirtualSwitch (Get-VirtualSwitch -Name "Mission LAN"  -VMHost $vmHost) -ManagementTrafficEnabled $true -IP "$opNetworkIP" -SubnetMask "$opNetworkSub" | Out-Null
 
 
 # Allowing autostart of VMs

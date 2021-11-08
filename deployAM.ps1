@@ -36,6 +36,7 @@ if ($host.name -match 'Windows PowerShell ISE Host')
 
 
 # Install and import PowerCli
+if (-not (Test-Path -Path $home\Documents\WindowsPowerShell\Modules)) { New-Item -ItemType Directory -Path $home\Documents\WindowsPowerShell\Modules }
 if ((Get-Module -ListAvailable VMware* | Measure-Object | Select-Object -ExpandProperty Count) -ne 73) {
     Write-Host "Installing VMWare Tools, this may take a while..." -ForegroundColor Cyan -BackgroundColor Black
     Save-Module -Name VMware.PowerCLI -Path $home\Documents\WindowsPowerShell\Modules

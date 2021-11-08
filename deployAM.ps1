@@ -1,16 +1,10 @@
 <#
 TODO:
 Add simple check to make sure the expected number of VMs are present
-Add check to make sure vSwith0 is set to vmnic5
 Test boot/invoke-vmscript with the wait-tools option. Need to specify the script type I think
 Add CPT account to ESXi with full perms
 #>
 
-
-Write-Host "Requirements:`n`n" 
-Write-Host "vSwitch0 needs to be set to vmnic5 in the Virtual Switch tab"
-Write-Host "`n`nWhen the above requirements are met you can continue"
-pause
 
 # Custom sleep
 function Start-Sleep-Custom($Seconds,$Message) {
@@ -73,6 +67,14 @@ while ($true){
     $vmHost = Get-VMHost -Name $vmHostName -ErrorAction SilentlyContinue
     if (-not $vmHost) { Write-Host "Host name wrong. Try again.`n" -ForegroundColor Red -BackgroundColor Black }
     else { Break }
+}
+
+
+# Check for correcnt default NIC configuration
+if ((Get-VirtualSwitch -name "vswitch0" -VMHost $vmHost | Select-Object -ExpandProperty Nic) -notmatch 'vmnic5') {
+    Write-Host "vSwitch0 needs to be set to vmnic5 in the Virtual Switch tab for proper deployment.`nPlease make that configuration change now and restart the script to ensure proper network conntecion to the new port."  -ForegroundColor Red -BackgroundColor Black
+    pause
+    exit
 }
 
 
